@@ -38,7 +38,7 @@ Everything needed to run, test, demo and maintain the Live-Rate Jewellery Config
 
 | OS | Install |
 |---|---|
-| Windows 10/11 | [Docker Desktop](https://www.docker.com/products/docker-desktop/) + an up-to-date WSL (see [Troubleshooting](#91-windows-wsl-needs-updating)) |
+| Windows 10/11 | [Docker Desktop](https://www.docker.com/products/docker-desktop/) + an up-to-date WSL (see [Troubleshooting](#91-windows-docker-desktop-errors)) |
 | macOS | Docker Desktop |
 | Linux | Docker Engine + Compose plugin |
 
@@ -48,6 +48,8 @@ docker --version
 docker compose version
 ```
 Docker Desktop must show **Engine running** before you continue.
+
+If Docker cannot run on your machine (see [Troubleshooting](#91-windows-docker-desktop-errors)), follow [Running without Docker](#8-running-without-docker) instead — it needs only Node.js and PostgreSQL.
 
 Free port needed: **3000** (app). PostgreSQL is not exposed outside Docker.
 
@@ -173,54 +175,70 @@ UPDATE products SET stock = 1 WHERE slug = 'meher-temple-necklace';   -- restock
 
 ## 8. Running without Docker
 
-Use this if Docker Desktop cannot run on your machine (for example, virtualization is disabled in the BIOS). You need **Node.js 22+** and **PostgreSQL 14+**.
+Use this when Docker cannot run (for example, virtualization is disabled in the BIOS on a managed laptop). Needs **Node.js 20 or newer** (built on Node 22; also runs on Node 24) and **PostgreSQL 14 or newer** (built on PostgreSQL 16; also runs on PostgreSQL 18).
 
-### 8.1 Windows
+In this mode the app runs as **two processes**: the API on port 3000 and the website on port 5173.
 
-**1. Install**
-- **Node.js 22 LTS** from https://nodejs.org (accept the defaults).
-- **PostgreSQL 16** from https://www.postgresql.org/download/windows/. Set the `postgres` user's password to **`postgres`**, keep port **5432**, and skip *Stack Builder* at the end.
+### 8.1 Windows (PowerShell), step by step
 
-**2. Create the two databases** (PowerShell; enter the password `postgres` when asked)
+**1. Install the prerequisites**
+- Node.js LTS from https://nodejs.org (accept the defaults).
+- PostgreSQL from https://www.postgresql.org/download/windows/. Tick **PostgreSQL Server** and **Command Line Tools**, keep port **5432**, and remember the password you set for the `postgres` user. **Stack Builder** at the end is not needed: click **Cancel**.
+
+**2. Allow npm to run in PowerShell** (one time, no admin needed)
 ```powershell
-& "C:\Program Files\PostgreSQL\16\bin\psql.exe" -U postgres -c "CREATE DATABASE jewellery;"
-& "C:\Program Files\PostgreSQL\16\bin\psql.exe" -U postgres -c "CREATE DATABASE jewellery_test;"
+Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
 ```
-If the path is not found, check the version folder under `C:\Program Files\PostgreSQL\` (for example `17`) and use that number.
+Answer **Y**. (Alternative without changing the setting: type `npm.cmd` instead of `npm` in every command.)
 
-**3. Install the project's packages** (PowerShell, inside the project folder)
+**3. Create the two databases.** This finds `psql` whatever PostgreSQL version is installed:
 ```powershell
+$psql = (Get-ChildItem "C:\Program Files\PostgreSQL\*\bin\psql.exe" | Select-Object -First 1).FullName; $psql
+& $psql -U postgres -c "CREATE DATABASE jewellery;"
+& $psql -U postgres -c "CREATE DATABASE jewellery_test;"
+```
+Enter the PostgreSQL password when asked; each command prints `CREATE DATABASE`.
+
+**4. Go to the project folder and install packages**
+```powershell
+cd C:\Users\<you>\Downloads\jewellery-configurator
 npm run install:all
 ```
+Lines about *vulnerabilities* (development tools only) and *esbuild install scripts* can be ignored. Do not run `npm audit fix --force`.
 
-**4. Run the tests**
+**5. Start the API — window 1** (replace `YOURPASSWORD` with the real PostgreSQL password)
 ```powershell
-$env:TEST_DATABASE_URL="postgres://postgres:postgres@localhost:5432/jewellery_test"; npm run test:local
+$env:DATABASE_URL="postgres://postgres:YOURPASSWORD@localhost:5432/jewellery"; npm run dev:server
+```
+Ready when it shows `Jewellery store on http://localhost:3000`. Leave the window open.
+
+**6. Start the website — window 2**
+```powershell
+cd C:\Users\<you>\Downloads\jewellery-configurator
+npm run dev:client
+```
+Open **http://localhost:5173**.
+
+> Opening http://localhost:3000 in this mode shows **"Cannot GET /"**. That is expected: port 3000 is only the API (try http://localhost:3000/api/products). To serve the website from port 3000 as well, run `npm --prefix client run build` once and restart window 1.
+
+**7. Run the tests — window 3**
+```powershell
+cd C:\Users\<you>\Downloads\jewellery-configurator
+$env:TEST_DATABASE_URL="postgres://postgres:YOURPASSWORD@localhost:5432/jewellery_test"; npm run test:local
 ```
 Expected ending: `# pass 29`, `# fail 0`.
 
-**5. Start the app** (two PowerShell windows, both in the project folder)
-
-Window 1, the server:
+**8. 30-second lock for the demo** — stop window 1 with `Ctrl + C`, then:
 ```powershell
-$env:DATABASE_URL="postgres://postgres:postgres@localhost:5432/jewellery"; npm run dev:server
-```
-Window 2, the website:
-```powershell
-npm run dev:client
-```
-Open **http://localhost:5173** (admin: http://localhost:5173/admin, token `admin`).
-
-For the 30-second lock demo, start the server with:
-```powershell
-$env:DATABASE_URL="postgres://postgres:postgres@localhost:5432/jewellery"; $env:PRICE_LOCK_SECONDS=30; $env:RATE_TICKER="off"; npm run dev:server
+$env:DATABASE_URL="postgres://postgres:YOURPASSWORD@localhost:5432/jewellery"; $env:PRICE_LOCK_SECONDS=30; $env:RATE_TICKER="off"; npm run dev:server
 ```
 
-Reset to sample data:
+**Reset sample data (no Docker):**
 ```powershell
-& "C:\Program Files\PostgreSQL\16\bin\psql.exe" -U postgres -c "DROP DATABASE jewellery;" -c "CREATE DATABASE jewellery;"
+& $psql -U postgres -c "DROP DATABASE jewellery;"
+& $psql -U postgres -c "CREATE DATABASE jewellery;"
 ```
-Then restart the server; it recreates the tables and sample data.
+Then restart window 1; the schema and sample data are recreated automatically.
 
 ### 8.2 macOS / Linux
 
@@ -228,19 +246,19 @@ Then restart the server; it recreates the tables and sample data.
 createdb -U postgres jewellery
 createdb -U postgres jewellery_test
 npm run install:all
-
-# tests
+DATABASE_URL=postgres://postgres:postgres@localhost:5432/jewellery npm run dev:server     # terminal 1
+npm run dev:client                                                                         # terminal 2 → http://localhost:5173
 TEST_DATABASE_URL=postgres://postgres:postgres@localhost:5432/jewellery_test npm run test:local
-
-# app (two terminals)
-DATABASE_URL=postgres://postgres:postgres@localhost:5432/jewellery npm run dev:server
-npm run dev:client
 ```
-Open **http://localhost:5173**. Adjust the user and password in the URLs to match your PostgreSQL install.
+Adjust the user and password in the URLs to match your PostgreSQL install.
+
+> **Password tip:** if the PostgreSQL password contains `@ # % / : ?`, URL-encode it in the connection string (for example `@` → `%40`, `#` → `%23`).
 
 ## 9. Troubleshooting
 
-### 9.1 Windows: "WSL needs updating"
+### 9.1 Windows: Docker Desktop errors
+
+**"WSL needs updating"**
 Open **PowerShell as administrator**:
 ```powershell
 wsl --update
@@ -256,7 +274,13 @@ If Docker reports virtualization is disabled, run (admin PowerShell) and restart
 dism.exe /online /enable-feature /featurename:Microsoft-Windows-Subsystem-Linux /all /norestart
 dism.exe /online /enable-feature /featurename:VirtualMachinePlatform /all /norestart
 ```
-If it still fails, virtualization must be enabled in the BIOS/UEFI settings (often called *Intel VT-x*, *AMD-V* or *SVM*).
+**"Virtualization is disabled in firmware"** — hardware virtualization must be turned on in the BIOS/UEFI:
+1. Windows **Settings → System → Recovery → Advanced startup → Restart now**, then **Troubleshoot → Advanced options → UEFI Firmware Settings → Restart**. (Or press the BIOS key while the PC starts: usually F2, F10, F1 or Del.)
+2. Find **Intel Virtualization Technology / Intel VT-x** or **SVM Mode / AMD-V** (under *Advanced*, *CPU Configuration* or *Security*) and set it to **Enabled**.
+3. Save and exit (usually F10).
+4. Check **Task Manager → Performance → CPU → Virtualization: Enabled**, then start Docker Desktop.
+
+On a managed work/school laptop the BIOS may be locked; use **section 8 (Running without Docker)** instead.
 
 ### 9.2 Other problems
 
@@ -272,6 +296,15 @@ If it still fails, virtualization must be enabled in the BIOS/UEFI settings (oft
 | `Virtualization is disabled in firmware` | Hardware virtualization off in BIOS | Enable Intel VT-x / AMD-V (SVM) in BIOS (section 9.1), or run without Docker (section 8) |
 | `password authentication failed` | Wrong PostgreSQL password in the URL | Use the password you set during install in `DATABASE_URL` / `TEST_DATABASE_URL` |
 | Code changes not visible | Image not rebuilt | Always use `--build` |
+| **Without Docker:** `npm.ps1 cannot be loaded because running scripts is disabled` | PowerShell execution policy | `Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned`, or use `npm.cmd` |
+| **Without Docker:** `'C:\Program Files\PostgreSQL\16\bin\psql.exe' is not recognized` | A different PostgreSQL version is installed (e.g. 18) | Use the `$psql = (Get-ChildItem …)` command in section 8.1, which finds any version |
+| **Without Docker:** `Cannot GET /` at localhost:3000 | Port 3000 is the API only in this mode | Open http://localhost:5173 (after `npm run dev:client`), or build the client (section 8.1, step 6) |
+| **Without Docker:** `password authentication failed for user "postgres"` | Wrong password in `DATABASE_URL` (e.g. the placeholder left in) | Use the password set when installing PostgreSQL |
+| **Without Docker:** `database "jewellery" does not exist` | Step 3 not done | Create the databases (section 8.1, step 3) |
+| **Without Docker:** `ECONNREFUSED 127.0.0.1:5432` | PostgreSQL service not running | Start it: Win + R → `services.msc` → *postgresql-x64-NN* → Start |
+| **Without Docker:** `Missing script: "dev:serve"` | Typo | The script is `dev:server` |
+| **Without Docker:** website fails to start with an **esbuild** error | Newer npm skipped esbuild's install script | `cd client; npm install-scripts approve esbuild; npm rebuild esbuild; cd ..` |
+| **Without Docker:** port 5173 or 3000 already in use | An earlier window is still running | Close the old PowerShell window or press `Ctrl + C` in it |
 
 ## 10. Project structure
 
