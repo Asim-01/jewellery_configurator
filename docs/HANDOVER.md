@@ -61,16 +61,17 @@ From the project folder (the one containing `docker-compose.yml`):
 docker compose up --build
 ```
 
-- First run takes 2–5 minutes (downloads images, installs packages, builds the client).
+- First run takes 2–5 minutes and needs internet access (downloads the `node` and `postgres` images and npm packages, builds the client). Later starts take seconds.
+- If the app was previously run **without Docker** on the same machine, stop those PowerShell windows first (`Ctrl + C`) so port 3000 is free. A local PostgreSQL install does not conflict: the Docker database is not exposed on port 5432.
 - Ready when the log shows: `Jewellery store on http://localhost:3000`
 - Open **http://localhost:3000**
 
 What happens on start-up:
 
-1. PostgreSQL starts; a `jewellery_test` database is also created for tests.
-2. The app waits for the database, applies the schema, and seeds sample data **if the products table is empty**.
+1. PostgreSQL starts; a `jewellery_test` database is also created for tests (the tests also create it themselves if missing).
+2. The app starts only once the database passes its health check, then waits for it, applies the schema, and seeds sample data **if the products table is empty**.
 3. The live-rate ticker starts (rates move every 60 s).
-4. The API and the built React app are served on port 3000.
+4. The API and the built React app are served on port 3000. Both containers report **healthy** in `docker compose ps` and restart automatically if they stop unexpectedly.
 
 Stop: press `Ctrl + C`, or from another terminal `docker compose down`.
 
@@ -146,9 +147,10 @@ Set as environment variables before `docker compose up` (see demo script for syn
 | `ADMIN_TOKEN` | `admin` | Token for `/admin` and admin API |
 | `DATABASE_URL` | set by compose | PostgreSQL connection (app) |
 | `TEST_DATABASE_URL` | set by compose | PostgreSQL connection (tests) |
-| `PORT` | `3000` | HTTP port inside the container |
+| `APP_PORT` | `3000` | Port on the host machine (open http://localhost:APP_PORT) |
+| `PORT` | `3000` | HTTP port inside the container (no need to change) |
 
-To use a different host port (e.g. if 3000 is busy), change `"3000:3000"` to `"8080:3000"` in `docker-compose.yml` and open http://localhost:8080.
+To use a different host port (e.g. if 3000 is busy), set `APP_PORT` — for example `$env:APP_PORT=8080; docker compose up --build` (PowerShell) or `APP_PORT=8080 docker compose up --build` (macOS/Linux) — and open http://localhost:8080.
 
 ## 7. Resetting and managing data
 
@@ -287,7 +289,7 @@ On a managed work/school laptop the BIOS may be locked; use **section 8 (Running
 | Symptom | Cause | Fix |
 |---|---|---|
 | `Cannot connect to the Docker daemon` / `error during connect` | Docker Desktop not running | Start it; wait for *Engine running* |
-| `port is already allocated` / `address already in use` | Something else uses port 3000 | Stop it, or change the port mapping (section 6) |
+| `port is already allocated` / `address already in use` | Something else uses port 3000 (e.g. the non-Docker dev server still running) | Stop it, or start with `APP_PORT=8080` (section 6) |
 | `no configuration file provided` | Terminal is in the wrong folder | `cd` into the folder with `docker-compose.yml` |
 | Page shows old stock / old data | Data persists in the volume | `docker compose down -v` then start again |
 | Fonts look plain | No internet access to Google Fonts | Cosmetic only; system fonts are used |

@@ -14,31 +14,45 @@ A small jewellery store where every price is calculated live from the current go
 
 ## Run it
 
+The only thing needed is **Docker** (Docker Desktop on Windows/macOS, or Docker Engine with the Compose plugin on Linux). Node.js and PostgreSQL run inside containers.
+
 ```bash
 docker compose up --build
 ```
 
-Open **http://localhost:3000**. The database is created, migrated and seeded on first start.
+Open **http://localhost:3000**. On first start the database is created, migrated and seeded automatically. The first build takes a few minutes; later starts take seconds.
 
-Run the tests (uses a separate `jewellery_test` database in the same Postgres container):
+Run the tests (in a second terminal; they use a separate `jewellery_test` database in the same Postgres container):
 
 ```bash
 docker compose run --rm --build test
 ```
 
-Handy switches for a demo (all optional):
+Stop with `Ctrl + C` (or `docker compose down`). Reset to the original sample data with `docker compose down -v`.
+
+Handy switches (all optional, set before the command):
 
 | Variable | Default | Effect |
 |---|---|---|
-| `PRICE_LOCK_SECONDS` | *(10 min)* | Shorten the lock, e.g. `PRICE_LOCK_SECONDS=30 docker compose up --build`, to watch expiry happen |
+| `PRICE_LOCK_SECONDS` | *(10 min)* | Shorten the lock to watch expiry happen |
 | `RATE_TICKER` | `on` | `off` freezes metal rates |
 | `RATE_TICK_MS` | `60000` | How often the simulated rate moves |
 | `ADMIN_TOKEN` | `admin` | Token for the `/admin` page |
+| `APP_PORT` | `3000` | Host port, if 3000 is already in use |
+
+```bash
+# macOS / Linux
+PRICE_LOCK_SECONDS=30 docker compose up --build
+```
+```powershell
+# Windows PowerShell
+$env:PRICE_LOCK_SECONDS=30; docker compose up --build
+```
 
 The fastest way to see every cart state: open `/admin` in a second tab, set a short lock, add items, then push the gold rate up or down before the lock ends.
 
 <details>
-<summary>Running without Docker</summary>
+<summary>Running without Docker (development only)</summary>
 
 Needs Node 22+ and a local PostgreSQL.
 

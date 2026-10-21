@@ -1,4 +1,15 @@
+# Keep the build context small and platform-independent.
+# node_modules from a Windows/macOS install must never be copied into the Linux image.
 **/node_modules
-client/dist
+**/dist
 .git
+.github
+docs
+*.md
 *.log
+.env
+.env.*
+.DS_Store
+Thumbs.db
+.vscode
+.idea

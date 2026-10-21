@@ -8,8 +8,25 @@ export const TEST_DB_URL =
 
 export const MINUTE = 60_000;
 
+/** Create the test database if it doesn't exist (e.g. a Docker volume made before it was added). */
+async function ensureDatabase() {
+  const url = new URL(TEST_DB_URL);
+  const name = url.pathname.slice(1);
+  url.pathname = '/postgres';
+  const admin = createPool(url.toString());
+  try {
+    const { rowCount } = await admin.query('SELECT 1 FROM pg_database WHERE datname = $1', [name]);
+    if (!rowCount) await admin.query(`CREATE DATABASE "${name.replace(/"/g, '""')}"`);
+  } catch (err) {
+    if (err.code !== '42P04') throw err; // another test file created it first
+  } finally {
+    await admin.end();
+  }
+}
+
 /** Fresh schema + seed data for every test file. */
 export async function setupDb() {
+  await ensureDatabase();
   const pool = createPool(TEST_DB_URL);
   await pool.query(`DROP TABLE IF EXISTS order_items, orders, cart_items, carts, price_locks, products, metal_rates CASCADE`);
   await migrate(pool);

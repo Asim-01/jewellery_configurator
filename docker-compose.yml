@@ -1,3 +1,10 @@
+# One command to run everything:   docker compose up --build
+# Then open:                          http://localhost:3000
+# Run the tests:                      docker compose run --rm --build test
+# Stop:  Ctrl+C  (or docker compose down)      Reset data:  docker compose down -v
+
+name: jewellery
+
 services:
   db:
     image: postgres:16-alpine
@@ -9,10 +16,13 @@ services:
       - ./docker/initdb.sql:/docker-entrypoint-initdb.d/01-test-db.sql:ro
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d jewellery"]
+      # TCP check: passes only once the final server is up (not the socket-only init server)
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U postgres -d jewellery"]
       interval: 2s
       timeout: 3s
       retries: 30
+    restart: unless-stopped
+    # Not published to the host, so it never clashes with a local PostgreSQL on 5432.
 
   app:
     build: { context: ., target: app }
@@ -20,17 +30,17 @@ services:
       DATABASE_URL: postgres://postgres:postgres@db:5432/jewellery
       PORT: 3000
       ADMIN_TOKEN: ${ADMIN_TOKEN:-admin}
-      RATE_TICKER: ${RATE_TICKER:-on}            # 'off' to freeze rates
-      RATE_TICK_MS: ${RATE_TICK_MS:-60000}       # rates move every minute
+      RATE_TICKER: ${RATE_TICKER:-on}             # 'off' freezes metal rates
+      RATE_TICK_MS: ${RATE_TICK_MS:-60000}        # rates move every minute
       PRICE_LOCK_SECONDS: ${PRICE_LOCK_SECONDS:-} # empty = 10 minutes
     ports:
-      - "3000:3000"
+      - "${APP_PORT:-3000}:3000"                  # APP_PORT=8080 if 3000 is busy
     depends_on:
       db: { condition: service_healthy }
+    restart: unless-stopped
 
-  # docker compose run --rm test
   test:
-    profiles: ["test"]
+    profiles: ["test"]                            # only runs when asked for
     build: { context: ., target: test }
     environment:
       TEST_DATABASE_URL: postgres://postgres:postgres@db:5432/jewellery_test
