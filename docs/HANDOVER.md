@@ -175,7 +175,7 @@ UPDATE products SET stock = 1 WHERE slug = 'meher-temple-necklace';   -- restock
 
 ## 8. Running without Docker
 
-Use this when Docker cannot run (for example, virtualization is disabled in the BIOS on a managed laptop). Needs **Node.js 20 or newer** (built on Node 22; also runs on Node 24) and **PostgreSQL 14 or newer** (built on PostgreSQL 16; also runs on PostgreSQL 18).
+Use this when Docker cannot run (for example, virtualization is disabled in the BIOS on a managed laptop). Needs **Node.js 22 or newer** (built on Node 22; also runs on Node 24) and **PostgreSQL 14 or newer** (built on PostgreSQL 16; also runs on PostgreSQL 18).
 
 In this mode the app runs as **two processes**: the API on port 3000 and the website on port 5173.
 
