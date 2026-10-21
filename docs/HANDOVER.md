@@ -64,6 +64,7 @@ docker compose up --build
 - Open **http://localhost:3000**
 
 What happens on start-up:
+
 1. PostgreSQL starts; a `jewellery_test` database is also created for tests.
 2. The app waits for the database, applies the schema, and seeds sample data **if the products table is empty**.
 3. The live-rate ticker starts (rates move every 60 s).
@@ -172,44 +173,70 @@ UPDATE products SET stock = 1 WHERE slug = 'meher-temple-necklace';   -- restock
 
 ## 8. Running without Docker
 
-Needs **Node.js 20+** and **PostgreSQL 14+** installed locally.
+Use this if Docker Desktop cannot run on your machine (for example, virtualization is disabled in the BIOS). You need **Node.js 22+** and **PostgreSQL 14+**.
 
-```bash
-# 1. databases
-createdb -U postgres jewellery
-createdb -U postgres jewellery_test
+### 8.1 Windows
 
-# 2. dependencies
+**1. Install**
+- **Node.js 22 LTS** from https://nodejs.org (accept the defaults).
+- **PostgreSQL 16** from https://www.postgresql.org/download/windows/. Set the `postgres` user's password to **`postgres`**, keep port **5432**, and skip *Stack Builder* at the end.
+
+**2. Create the two databases** (PowerShell; enter the password `postgres` when asked)
+```powershell
+& "C:\Program Files\PostgreSQL\16\bin\psql.exe" -U postgres -c "CREATE DATABASE jewellery;"
+& "C:\Program Files\PostgreSQL\16\bin\psql.exe" -U postgres -c "CREATE DATABASE jewellery_test;"
+```
+If the path is not found, check the version folder under `C:\Program Files\PostgreSQL\` (for example `17`) and use that number.
+
+**3. Install the project's packages** (PowerShell, inside the project folder)
+```powershell
 npm run install:all
 ```
 
-Then in two terminals:
+**4. Run the tests**
+```powershell
+$env:TEST_DATABASE_URL="postgres://postgres:postgres@localhost:5432/jewellery_test"; npm run test:local
+```
+Expected ending: `# pass 29`, `# fail 0`.
 
-**macOS / Linux**
+**5. Start the app** (two PowerShell windows, both in the project folder)
+
+Window 1, the server:
+```powershell
+$env:DATABASE_URL="postgres://postgres:postgres@localhost:5432/jewellery"; npm run dev:server
+```
+Window 2, the website:
+```powershell
+npm run dev:client
+```
+Open **http://localhost:5173** (admin: http://localhost:5173/admin, token `admin`).
+
+For the 30-second lock demo, start the server with:
+```powershell
+$env:DATABASE_URL="postgres://postgres:postgres@localhost:5432/jewellery"; $env:PRICE_LOCK_SECONDS=30; $env:RATE_TICKER="off"; npm run dev:server
+```
+
+Reset to sample data:
+```powershell
+& "C:\Program Files\PostgreSQL\16\bin\psql.exe" -U postgres -c "DROP DATABASE jewellery;" -c "CREATE DATABASE jewellery;"
+```
+Then restart the server; it recreates the tables and sample data.
+
+### 8.2 macOS / Linux
+
 ```bash
+createdb -U postgres jewellery
+createdb -U postgres jewellery_test
+npm run install:all
+
+# tests
+TEST_DATABASE_URL=postgres://postgres:postgres@localhost:5432/jewellery_test npm run test:local
+
+# app (two terminals)
 DATABASE_URL=postgres://postgres:postgres@localhost:5432/jewellery npm run dev:server
 npm run dev:client
 ```
-
-**Windows PowerShell**
-```powershell
-$env:DATABASE_URL="postgres://postgres:postgres@localhost:5432/jewellery"; npm run dev:server
-npm run dev:client
-```
-
-Open **http://localhost:5173** (Vite dev server; it forwards `/api` to port 3000).
-
-Tests:
-```bash
-# macOS / Linux
-TEST_DATABASE_URL=postgres://postgres:postgres@localhost:5432/jewellery_test npm run test:local
-```
-```powershell
-# Windows
-$env:TEST_DATABASE_URL="postgres://postgres:postgres@localhost:5432/jewellery_test"; npm run test:local
-```
-
-Adjust user/password in the URLs to match your PostgreSQL install.
+Open **http://localhost:5173**. Adjust the user and password in the URLs to match your PostgreSQL install.
 
 ## 9. Troubleshooting
 
@@ -241,7 +268,9 @@ If it still fails, virtualization must be enabled in the BIOS/UEFI settings (oft
 | Page shows old stock / old data | Data persists in the volume | `docker compose down -v` then start again |
 | Fonts look plain | No internet access to Google Fonts | Cosmetic only; system fonts are used |
 | Countdown shows 10 min even with `PRICE_LOCK_SECONDS` | Variable not set in the same terminal | Set it in the same command (section 5) and rebuild |
-| Tests fail with `connection refused` | Database not up yet / not using compose | Use `docker compose run --rm --build test` |
+| Tests fail with `connection refused` | Database not up yet / not using compose | Use `docker compose run --rm --build test`; without Docker, check the PostgreSQL service is running |
+| `Virtualization is disabled in firmware` | Hardware virtualization off in BIOS | Enable Intel VT-x / AMD-V (SVM) in BIOS (section 9.1), or run without Docker (section 8) |
+| `password authentication failed` | Wrong PostgreSQL password in the URL | Use the password you set during install in `DATABASE_URL` / `TEST_DATABASE_URL` |
 | Code changes not visible | Image not rebuilt | Always use `--build` |
 
 ## 10. Project structure

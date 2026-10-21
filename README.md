@@ -40,7 +40,7 @@ The fastest way to see every cart state: open `/admin` in a second tab, set a sh
 <details>
 <summary>Running without Docker</summary>
 
-Needs Node 20+ and a local PostgreSQL.
+Needs Node 22+ and a local PostgreSQL.
 
 ```bash
 createdb jewellery && createdb jewellery_test
