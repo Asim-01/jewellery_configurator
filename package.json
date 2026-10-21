@@ -1,0 +1,13 @@
+{
+  "name": "live-rate-jewellery",
+  "private": true,
+  "description": "Live-rate jewellery configurator, cart & checkout (React + Node + PostgreSQL)",
+  "scripts": {
+    "start": "docker compose up --build",
+    "test": "docker compose run --rm --build test",
+    "install:all": "npm --prefix server install && npm --prefix client install",
+    "dev:server": "npm --prefix server run dev",
+    "dev:client": "npm --prefix client run dev",
+    "test:local": "npm --prefix server test"
+  }
+}
