@@ -4,6 +4,12 @@ A small jewellery store where every price is calculated live from the current go
 
 **Stack:** React 18 (Vite) · Node 22 + Express · PostgreSQL 16 · Docker Compose
 
+| Document | What's in it |
+|---|---|
+| [Business Requirements (BRD)](docs/BRD.md) | Objectives, scope, pricing and business rules, functional requirements, acceptance criteria |
+| [Technical Documentation](docs/DOCUMENTATION.md) | Architecture, flow diagrams, cart state machine, data model, full API reference, error codes |
+| [Handover](docs/HANDOVER.md) | How to run, test and demo it, configuration, troubleshooting (incl. Windows/WSL), maintenance |
+
 ---
 
 ## Run it
